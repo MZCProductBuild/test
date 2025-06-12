@@ -80,6 +80,7 @@ jobs:
           export TAG="${{ github.run_number }}"
           export SPRING_PROFILES_ACTIVE="${{ env.PROFILE }}"
           export ECR_TOKEN="$(aws ecr get-login-password --region ap-northeast-2)"
+          export BUILD_VERSION="${{ github.run_number }}"
           chmod +x ./gradlew 
           ./gradlew build -x test
           ./gradlew jib

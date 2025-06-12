@@ -56,7 +56,7 @@ jib {
 
 	}
 	to {
-		image = "196648750246.dkr.ecr.ap-northeast-2.amazonaws.com/air-bss/air-bss-admin-center-api:latest"
+		image = "196648750246.dkr.ecr.ap-northeast-2.amazonaws.com/air-bss/test:${System.getenv("BUILD_VERSION") ?: "latest"}"
 
 		auth {
 			username = "AWS"
