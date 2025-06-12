@@ -72,12 +72,6 @@ jobs:
       ##################################################################################
       - name: Build with Gradle Wrapper
         run: |
-          export AWS_CONTAINER_REGISTRY="${{ env.AWS_CONTAINER_REGISTRY }}"
-          export AWS_ACCESS_KEY_ID="${{ env.AWS_ACCESS_KEY_ID }}"
-          export AWS_SECRET_ACCESS_KEY="${{ env.AWS_SECRET_ACCESS_KEY }}"
-          export SERVICE_NAME="${{ env.SERVICE_NAME }}"
-          export BASE_IMAGE="${{ env.BASE_IMAGE }}"
-          export TAG="${{ github.run_number }}"
           export SPRING_PROFILES_ACTIVE="${{ env.PROFILE }}"
           export ECR_TOKEN="$(aws ecr get-login-password --region ap-northeast-2)"
           export BUILD_VERSION="${{ github.run_number }}"
