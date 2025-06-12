@@ -1,0 +1,120 @@
+name: Java CI with Gradle (Kotlin)
+
+on:
+  push:
+    branches: ["dev"]
+
+##################################################################################
+# Environment variables
+##################################################################################
+env:
+  PROFILE: dev
+  SERVICE_NAME: ${{ github.event.repository.name }}
+  AWS_CONTAINER_REGISTRY: ${{ secrets.AWS_CONTAINER_REGISTRY }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  ARGO_REF: main
+  BASE_IMAGE: amazoncorretto:21-alpine
+  JAVA_VERSION: 21
+  APP: air-bss-admin-center-api
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: write
+  pages: write
+
+##################################################################################
+# Build Application
+##################################################################################
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+
+
+    env:
+      BRANCH: ${{ github.ref }}
+      releaseVersion: ${{ github.run_number }}
+      runAttepmpt: ${{ github.run_attempt }}
+
+    steps:
+
+      ##################################################################################
+      # Initialize
+      ##################################################################################
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{env.JAVA_VERSION}}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{env.JAVA_VERSION}}
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
+
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      ##################################################################################
+      # Build & Push Container Image by jib
+      ##################################################################################
+      - name: Build with Gradle Wrapper
+        run: |
+          export AWS_CONTAINER_REGISTRY="${{ env.AWS_CONTAINER_REGISTRY }}"
+          export AWS_ACCESS_KEY_ID="${{ env.AWS_ACCESS_KEY_ID }}"
+          export AWS_SECRET_ACCESS_KEY="${{ env.AWS_SECRET_ACCESS_KEY }}"
+          export SERVICE_NAME="${{ env.SERVICE_NAME }}"
+          export BASE_IMAGE="${{ env.BASE_IMAGE }}"
+          export TAG="${{ github.run_number }}"
+          export SPRING_PROFILES_ACTIVE="${{ env.PROFILE }}"
+          export ECR_TOKEN="$(aws ecr get-login-password --region ap-northeast-2)"
+          chmod +x ./gradlew 
+          ./gradlew build -x test
+          ./gradlew jib
+
+      ##################################################################################
+      # Modify Image Tag in ArgoCD Repository
+      # ArgoCD 사용 argocd-manifest 레파지토리에 이미지 번호 업데이트 deployment.yaml
+      ##################################################################################
+
+      - name: Checkout ArgoCD manifest repo
+        uses: actions/checkout@v4
+        with:
+            repository: MZCProductBuild/air-bss-deployment-manifest
+            ref: main
+            path: air-bss-deployment-manifest/
+            token: ${{ secrets.GH_PAT }}
+        #    path: air-bss-deployment-manifest
+        #    path: air-bss-deployment-manifest/app/air-bss-admin-center-api/dev
+
+      - name: Change Deployment.yaml
+        env:
+          APP: ${{ env.SERVICE_NAME }}/${{ env.PROFILE }}
+          IMAGE: ${{ env.AWS_CONTAINER_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ github.run_number }}
+        uses: mikefarah/yq@master
+        with:
+          cmd: yq -i '.spec.template.spec.containers[0].image = env(IMAGE)' ./air-bss-deployment-manifest/app/${{ env.APP }}/Deployment.yaml
+
+      - name: Push ArgoCD manifest repo
+        env:
+          IMAGE: ${{ env.AWS_CONTAINER_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ github.run_number }}
+        run: |
+          cd air-bss-deployment-manifest
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action Bot"
+          git add -A
+          git pull origin main
+          git commit -am "Updated with tag ${{ env.IMAGE }} by Pipeline"
+          git push
