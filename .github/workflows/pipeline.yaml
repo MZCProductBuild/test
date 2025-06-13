@@ -100,7 +100,7 @@ jobs:
           IMAGE: ${{ env.AWS_CONTAINER_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ github.run_number }}
         uses: mikefarah/yq@master
         with:
-          cmd: yq -i '.spec.template.spec.containers[0].image = env(IMAGE)' ./air-bss-deployment-manifest/app/${{ env.SERVICE_NAME }}/Deployment.yaml
+          cmd: yq -i '.spec.template.spec.containers[0].image = env(IMAGE)' ./air-bss-deployment-manifest/app/${{ env.APP }}/Deployment.yaml
 
       - name: Push ArgoCD manifest repo
         env:
