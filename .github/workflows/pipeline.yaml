@@ -16,7 +16,7 @@ env:
   ARGO_REF: main
   BASE_IMAGE: amazoncorretto:21-alpine
   JAVA_VERSION: 21
-  APP: air-bss-admin-center-api
+  #APP: air-bss-admin-center-api
 
 defaults:
   run:
@@ -100,7 +100,7 @@ jobs:
           IMAGE: ${{ env.AWS_CONTAINER_REGISTRY }}/${{ env.SERVICE_NAME }}:${{ github.run_number }}
         uses: mikefarah/yq@master
         with:
-          cmd: yq -i '.spec.template.spec.containers[0].image = env(IMAGE)' ./air-bss-deployment-manifest/app/${{ env.APP }}/Deployment.yaml
+          cmd: yq -i '.spec.template.spec.containers[0].image = env(IMAGE)' ./air-bss-deployment-manifest/app/${{ env.SERVICE_NAME }}/Deployment.yaml
 
       - name: Push ArgoCD manifest repo
         env:
