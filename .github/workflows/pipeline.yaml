@@ -36,7 +36,6 @@ jobs:
       contents: write
       pages: write
 
-
     env:
       BRANCH: ${{ github.ref }}
       releaseVersion: ${{ github.run_number }}
@@ -44,9 +43,6 @@ jobs:
 
     steps:
 
-      ##################################################################################
-      # Initialize
-      ##################################################################################
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -56,25 +52,31 @@ jobs:
           java-version: ${{env.JAVA_VERSION}}
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
-
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-2
+          
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
-      ##################################################################################
-      # Build & Push Container Image by jib
-      ##################################################################################
-      - name: Build with Gradle Wrapper
+      - name: aws ecr get-login-password
+        run: |
+          export ECR_TOKEN="$(aws ecr get-login-password --region ap-northeast-2)"
+    
+      - name: export Container
         run: |
           export SPRING_PROFILES_ACTIVE="${{ env.PROFILE }}"
-          export ECR_TOKEN="$(aws ecr get-login-password --region ap-northeast-2)"
           export BUILD_VERSION="${{ github.run_number }}"
+          
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
+
+      - name: Build & Push Container Image by jib
+        run: |
           chmod +x ./gradlew 
           ./gradlew build -x test
           ./gradlew jib
@@ -91,8 +93,6 @@ jobs:
             ref: main
             path: air-bss-deployment-manifest/
             token: ${{ secrets.GH_PAT }}
-        #    path: air-bss-deployment-manifest
-        #    path: air-bss-deployment-manifest/app/air-bss-admin-center-api/dev
 
       - name: Change Deployment.yaml
         env:
